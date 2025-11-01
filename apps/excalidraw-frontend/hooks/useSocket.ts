@@ -8,17 +8,27 @@ export function useSocket() {
     const token = Cookies.get('token');
 
     useEffect(() => {
-        console.log(token);
+        if (!token) {
+            setLoading(false);
+            return;
+        }
+
         const ws = new WebSocket(`${WEBSOCKET_URL}?token=${token}`);    
 
         ws.onopen = () => {
             setLoading(false);
             setSocket(ws);
         }
-        
 
-        return () => ws.close();
-    }, []);
+        ws.onerror = (error) => {
+            console.error('WebSocket error:', error);
+            setLoading(false);
+        }
+
+        return () => {
+            ws.close();
+        };
+    }, [token]);
 
     return {loading, socket}; 
 }

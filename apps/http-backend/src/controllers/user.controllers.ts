@@ -2,7 +2,7 @@ import prisma from "@repo/db/client";
 import { Request, Response } from "express";
 import jwt from 'jsonwebtoken';
 import bcrypt from "bcrypt";
-import { JWT_SECRET } from "@repo/backend-common/config";
+import { JWT_SECRET, logger } from "@repo/backend-common/config";
 import { createRoomSchema, createUserSchema, signinSchema } from "@repo/common/types";
 
 const options = {
@@ -44,7 +44,7 @@ export const signupHandler = async (req: Request, res: Response): Promise<void> 
 
         res.status(201).json({user});
     } catch (error) {
-        console.log(error)
+        logger.error('Signup failed', error);
         res.status(500).json({ message: 'Internal server error' });
     }
 }
@@ -79,7 +79,7 @@ export const loginHandler = async (req: Request, res: Response): Promise<void> =
 
         res.status(201).cookie("token", token, options).json({user, token});
     } catch (error) {
-        console.log(error);
+        logger.error('Login failed', error);
         res.status(500).json({ message: 'Internal server error' });
     }
 }
@@ -105,7 +105,7 @@ export const createRoomHandler = async (req: Request, res: Response): Promise<vo
 
         res.status(201).json({ message: 'Room created', id: room.id});
     } catch (error) {
-        console.log(error)
+        logger.error('Room creation failed', error);
         res.status(500).json({ message: 'Internal server error' });
     }
 }
@@ -126,14 +126,13 @@ export const getExistingShapes = async (req: Request, res: Response) => {
 
         res.status(201).json({shapes})
     } catch (error) {
-        console.log(error);
-        res.status(500).json({message: "Could not fetch chats"})
+        logger.error('Failed to fetch shapes', error, { roomId });
+        res.status(500).json({message: "Could not fetch shapes"})
     }
 }
 
 export const getRoomId = async (req: Request, res: Response) => {
     const {slug} = req.params;
-    console.log(slug);
     
     try {
         const room = await prisma.room.findUnique({
@@ -149,7 +148,7 @@ export const getRoomId = async (req: Request, res: Response) => {
 
         res.status(200).json({roomId: room.id});
     } catch (error) {
-        console.log(error);
+        logger.error('Failed to fetch room', error, { slug });
         res.status(500).json({message: "Could not fetch room"})
     }
 }

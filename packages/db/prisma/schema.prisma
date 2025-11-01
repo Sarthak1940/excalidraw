@@ -27,8 +27,10 @@ model Room {
   slug      String   @unique
   createdAt DateTime @default(now())
   adminId   Int
-  admin     User     @relation(fields: [adminId], references: [id])
+  admin     User     @relation(fields: [adminId], references: [id], onDelete: Cascade)
   shapes    Shape[]
+
+  @@index([adminId])
 }
 
 model Shape {
@@ -37,10 +39,14 @@ model Shape {
   strokeColor    String
   strokeWidth    Int
   backgroundColor String
-  data           String
+  data           String   @db.Text
   createdAt      DateTime @default(now())
   roomId         Int
-  room           Room     @relation(fields: [roomId], references: [id])
+  room           Room     @relation(fields: [roomId], references: [id], onDelete: Cascade)
   userId         Int
-  user           User     @relation(fields: [userId], references: [id])
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([roomId])
+  @@index([userId])
+  @@index([createdAt])
 }

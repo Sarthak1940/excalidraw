@@ -13,6 +13,7 @@ export default function Canvas({roomId, socket}: {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const shapesRef = useRef<Shape[]>([]);
     const redoRef = useRef<Shape[]>([]);
+    const drawingStateRef = useRef<any>(null);
 
     const [selectedShape, setSelectedShape] = useState("rect");
     const [strokeColor, setStrokeColor] = useState("#ffffff");
@@ -30,7 +31,9 @@ export default function Canvas({roomId, socket}: {
         const resize = () => {
             canvas.width = window.innerWidth;
             canvas.height = window.innerHeight;
-            clearCanvas(shapesRef.current, ctx, canvas);
+            if (drawingStateRef.current) {
+                clearCanvas(shapesRef.current, ctx, canvas, drawingStateRef.current);
+            }
         };
 
         resize();
@@ -41,7 +44,7 @@ export default function Canvas({roomId, socket}: {
             if (e.ctrlKey && e.key === "y") redo();
         })
 
-        const cleanup = initDraw({ canvas, roomId, socket, ctx, selectedShapeType: selectedShape, shapesRef, strokeColor, strokeWidth, backgroundColor, redoRef });
+        const cleanup = initDraw({ canvas, roomId, socket, ctx, selectedShapeType: selectedShape, shapesRef, strokeColor, strokeWidth, backgroundColor, redoRef, drawingStateRef });
 
         return () => {
             cleanup();
@@ -71,7 +74,9 @@ export default function Canvas({roomId, socket}: {
                 }))
             }
             
-            clearCanvas(shapesRef.current, canvasRef.current?.getContext("2d")!, canvasRef.current!);
+            if (drawingStateRef.current && canvasRef.current) {
+                clearCanvas(shapesRef.current, canvasRef.current.getContext("2d")!, canvasRef.current, drawingStateRef.current);
+            }
         }
     }
 
@@ -87,7 +92,9 @@ export default function Canvas({roomId, socket}: {
                     roomId
                 }
             }))
-            clearCanvas(shapesRef.current, canvasRef.current?.getContext("2d")!, canvasRef.current!);
+            if (drawingStateRef.current && canvasRef.current) {
+                clearCanvas(shapesRef.current, canvasRef.current.getContext("2d")!, canvasRef.current, drawingStateRef.current);
+            }
         }
     }
 

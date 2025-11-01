@@ -1,7 +1,8 @@
 import { WebSocketServer, WebSocket } from "ws";
 import jwt, { JwtPayload } from "jsonwebtoken";
-import { JWT_SECRET } from "@repo/backend-common/config";
+import { JWT_SECRET, logger } from "@repo/backend-common/config";
 import prisma from '@repo/db/client';
+import { wsMessageSchema } from "@repo/common/types";
 
 interface ChatProps {
     socket: WebSocket,
@@ -22,7 +23,7 @@ function checkUser(token: string): number | null {
 
         return decoded.id;
     } catch (error) {
-        console.log(error);
+        logger.warn('Invalid token', { error });
         return null
     }
 }
@@ -51,7 +52,7 @@ async function deleteShape(shapeId: number) {
             }
         })
     } catch (error) {
-        console.log(error)
+        logger.error('Failed to delete shape', error, { shapeId })
     }
 }
 
@@ -68,7 +69,7 @@ async function updateShape(shapeId: number, data: string) {
 
         return shape;
     } catch (error) {
-        console.log(error)
+        logger.error('Failed to update shape', error, { shapeId })
         return null;
     }
 }
@@ -91,10 +92,27 @@ wss.on("connection", (ws, req) => {
     } 
 
     ws.on("message", async (message) => {
-        const parsedMessage = JSON.parse(message as unknown as string);
+        let parsedMessage;
+        try {
+            parsedMessage = JSON.parse(message as unknown as string);
+        } catch (error) {
+            logger.error('Failed to parse WebSocket message', error);
+            ws.send(JSON.stringify({ type: 'error', message: 'Invalid message format' }));
+            return;
+        }
+
+        // Validate message schema
+        const validationResult = wsMessageSchema.safeParse(parsedMessage);
+        if (!validationResult.success) {
+            logger.warn('Invalid WebSocket message schema', { error: validationResult.error, message: parsedMessage });
+            ws.send(JSON.stringify({ type: 'error', message: 'Invalid message schema' }));
+            return;
+        }
+
+        const validMessage = validationResult.data;
         
-        if (parsedMessage.type === "join_room") {
-            const roomId = parsedMessage.payload.roomId;
+        if (validMessage.type === "join_room") {
+            const roomId = validMessage.payload.roomId;
             
             if (!userMap.has(roomId)) {
                 userMap.set(roomId, []);
@@ -106,20 +124,20 @@ wss.on("connection", (ws, req) => {
             });
         }
 
-        if (parsedMessage.type === "leave_room") {
-            const members = userMap.get(parsedMessage.payload.roomId);
+        if (validMessage.type === "leave_room") {
+            const members = userMap.get(validMessage.payload.roomId);
             const index = members?.findIndex((member) => member.userId === userId);
             members?.splice(index as number, 1);
         }
 
-        if (parsedMessage.type === "shape") {
-            const data = parsedMessage.payload.data;
-            const type = parsedMessage.payload.type;
-            const strokeColor = parsedMessage.payload.strokeColor;
-            const strokeWidth = parsedMessage.payload.strokeWidth;
-            const backgroundColor = parsedMessage.payload.backgroundColor;
-            const roomId = parsedMessage.payload.roomId;
-            const tempId = parsedMessage.payload.tempId;
+        if (validMessage.type === "shape") {
+            const data = validMessage.payload.data;
+            const type = validMessage.payload.type;
+            const strokeColor = validMessage.payload.strokeColor;
+            const strokeWidth = validMessage.payload.strokeWidth;
+            const backgroundColor = validMessage.payload.backgroundColor;
+            const roomId = validMessage.payload.roomId;
+            const tempId = validMessage.payload.tempId;
             const members = userMap.get(roomId);
             
             const shapeId = await createShape(data, type, strokeWidth, strokeColor, backgroundColor, userId, roomId);
@@ -142,11 +160,11 @@ wss.on("connection", (ws, req) => {
             })
         }
 
-        if (parsedMessage.type === "undo") {
+        if (validMessage.type === "undo") {
             
-            const roomId = parsedMessage.payload.roomId;
+            const roomId = validMessage.payload.roomId;
             const members = userMap.get(roomId);
-            const shapeId = parsedMessage.payload.id;
+            const shapeId = validMessage.payload.id;
             await deleteShape(shapeId);
 
             members?.forEach((member) => {
@@ -162,14 +180,14 @@ wss.on("connection", (ws, req) => {
             })
         }
 
-        if (parsedMessage.type === "redo") {
-            const shape = parsedMessage.payload.shape
+        if (validMessage.type === "redo") {
+            const shape = validMessage.payload.shape
             const data = shape.data;
             const type = shape.type;
             const strokeColor = shape.strokeColor;
             const strokeWidth = shape.strokeWidth;
             const backgroundColor = shape.backgroundColor;
-            const roomId = parsedMessage.payload.roomId;
+            const roomId = validMessage.payload.roomId;
             const tempId = shape.tempId;
             const members = userMap.get(roomId);
 
@@ -193,10 +211,10 @@ wss.on("connection", (ws, req) => {
             })
         }
 
-        if (parsedMessage.type === "update") {
-            const data = parsedMessage.payload.data;
-            const id = parsedMessage.payload.id;
-            const members = userMap.get(parsedMessage.payload.roomId);
+        if (validMessage.type === "update") {
+            const data = validMessage.payload.data;
+            const id = validMessage.payload.id;
+            const members = userMap.get(validMessage.payload.roomId);
 
             const shape = await updateShape(id, data);
 
@@ -212,7 +230,7 @@ wss.on("connection", (ws, req) => {
                         strokeWidth: shape?.strokeWidth,
                         backgroundColor: shape?.backgroundColor,
                         userId,
-                        roomId: parsedMessage.payload.roomId,
+                        roomId: validMessage.payload.roomId,
                         shapeId: shape?.id,
                     }
                 }));

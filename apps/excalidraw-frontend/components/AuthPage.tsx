@@ -36,8 +36,9 @@ export default function AuthPage({isSignIn}: {isSignIn: boolean}) {
       }
 
       setIsLoading(false);
-    } catch(e) {
-      console.log(e);
+    } catch(error: any) {
+      console.error('Authentication failed:', error?.response?.data?.message || error.message);
+      alert(error?.response?.data?.message || 'Authentication failed. Please try again.');
       setIsLoading(false);
     }
     

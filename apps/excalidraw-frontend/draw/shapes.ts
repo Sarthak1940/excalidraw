@@ -1,5 +1,10 @@
 import { Shape } from "@/types";
+import { DRAWING_CONSTANTS } from "./constants";
+import { parseShapeData } from "./utils";
 
+/**
+ * Normalizes rectangle coordinates to handle negative width/height
+ */
 function normalizeRect(x: number, y: number, width: number, height: number) {
     const left = width < 0 ? x + width : x;
     const top = height < 0 ? y + height : y;
@@ -9,8 +14,16 @@ function normalizeRect(x: number, y: number, width: number, height: number) {
     return { x: left, y: top, width: normalizedWidth, height: normalizedHeight };
 }
 
+/**
+ * Renders a shape on the canvas
+ */
 export function renderShape(ctx: CanvasRenderingContext2D, shape: Shape) {
-    const data = JSON.parse(shape.data);
+    const data = parseShapeData(shape.data);
+    if (!data) {
+        console.error("Failed to render shape: invalid data");
+        return;
+    }
+
     ctx.strokeStyle = shape.strokeColor;
     ctx.lineWidth = shape.strokeWidth;
     ctx.fillStyle = shape.backgroundColor;
@@ -67,8 +80,11 @@ export function drawPencil(ctx: CanvasRenderingContext2D, pencilPath: {x: number
     ctx.closePath();
 }
 
+/**
+ * Draws a dashed selection box around a shape
+ */
 export function drawSelectionBox(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number) {
-    ctx.setLineDash([5, 3]);
+    ctx.setLineDash([...DRAWING_CONSTANTS.SELECTION_DASH_PATTERN]);
     const left = Math.min(x, x + width);
     const top = Math.min(y, y + height);
     const normalizedWidth = Math.abs(width);
@@ -77,16 +93,19 @@ export function drawSelectionBox(ctx: CanvasRenderingContext2D, x: number, y: nu
     ctx.setLineDash([]);
 }
 
+/**
+ * Draws resize handlers for the selected shape
+ */
 export function drawResizeHandlers(
     ctx: CanvasRenderingContext2D,
     type: "rect" | "circle" | "line",
     data: any
 ) {
-    const size = 8; // Diameter of the resize handle
+    const size = DRAWING_CONSTANTS.RESIZE_HANDLE_SIZE;
     const radius = size / 2;
-    ctx.fillStyle = "#00FFFF";
-    ctx.strokeStyle = "#000"; // Black border for better visibility
-    ctx.lineWidth = 1.5;
+    ctx.fillStyle = DRAWING_CONSTANTS.HANDLE_COLOR;
+    ctx.strokeStyle = DRAWING_CONSTANTS.HANDLE_BORDER_COLOR;
+    ctx.lineWidth = DRAWING_CONSTANTS.HANDLE_BORDER_WIDTH;
 
     if (type === "rect") {
         const { x, y, width, height } = data;

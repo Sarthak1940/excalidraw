@@ -1,6 +1,6 @@
 import { NextFunction, Response, Request } from 'express';
 import jwt, { JwtPayload } from 'jsonwebtoken';
-import { JWT_SECRET } from "@repo/backend-common/config";
+import { JWT_SECRET, logger } from "@repo/backend-common/config";
 
 export const authMiddleware = (req: Request, res: Response, next: NextFunction): void => {
     const token = req.cookies.token;
@@ -15,7 +15,7 @@ export const authMiddleware = (req: Request, res: Response, next: NextFunction):
         req.userId = decoded.id;
         next();
     } catch (error) {
-        console.log(error);
+        logger.warn('Authentication failed', { error });
         res.status(401).json({ message: 'Unauthorized' });
         return;
     }
