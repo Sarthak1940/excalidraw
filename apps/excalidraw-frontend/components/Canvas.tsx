@@ -38,21 +38,27 @@ export default function Canvas({roomId, socket}: {
 
         resize();
 
+        // Keyboard handler
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.ctrlKey && e.key === "z") {
+                e.preventDefault();
+                undo();
+            }
+            if (e.ctrlKey && e.key === "y") {
+                e.preventDefault();
+                redo();
+            }
+        };
+
         window.addEventListener("resize", resize);
-        window.addEventListener("keydown", (e) => {
-            if (e.ctrlKey && e.key === "z") undo();
-            if (e.ctrlKey && e.key === "y") redo();
-        })
+        window.addEventListener("keydown", handleKeyDown);
 
         const cleanup = initDraw({ canvas, roomId, socket, ctx, selectedShapeType: selectedShape, shapesRef, strokeColor, strokeWidth, backgroundColor, redoRef, drawingStateRef });
 
         return () => {
             cleanup();
             window.removeEventListener("resize", resize);
-            window.removeEventListener("keydown", (e) => {
-                if (e.ctrlKey && e.key === "z") undo();
-                if (e.ctrlKey && e.key === "y") redo();
-            })
+            window.removeEventListener("keydown", handleKeyDown);
         };
         
     }, [roomId, socket, selectedShape, strokeColor, strokeWidth, backgroundColor]);

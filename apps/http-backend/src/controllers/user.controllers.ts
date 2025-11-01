@@ -39,10 +39,15 @@ export const signupHandler = async (req: Request, res: Response): Promise<void> 
                 email,
                 password: hashedPassword,
                 name
+            },
+            select: {
+                id: true,
+                email: true,
+                name: true
             }
         })
 
-        res.status(201).json({user});
+        res.status(201).json({ user });
     } catch (error) {
         logger.error('Signup failed', error);
         res.status(500).json({ message: 'Internal server error' });
@@ -75,9 +80,16 @@ export const loginHandler = async (req: Request, res: Response): Promise<void> =
             return;
         }
 
-        const token = jwt.sign({ id: user.id }, JWT_SECRET as string);
+        const token = jwt.sign({ id: user.id }, JWT_SECRET as string, { expiresIn: '90d' });
 
-        res.status(201).cookie("token", token, options).json({user, token});
+        // Return user without password
+        const userWithoutPassword = {
+            id: user.id,
+            email: user.email,
+            name: user.name
+        };
+
+        res.status(200).cookie("token", token, options).json({ user: userWithoutPassword, token });
     } catch (error) {
         logger.error('Login failed', error);
         res.status(500).json({ message: 'Internal server error' });
@@ -113,26 +125,37 @@ export const createRoomHandler = async (req: Request, res: Response): Promise<vo
 export const getExistingShapes = async (req: Request, res: Response) => {
     const roomId = Number(req.params.roomId);
 
+    // Validate roomId
+    if (isNaN(roomId) || roomId <= 0) {
+        res.status(400).json({ message: 'Invalid room ID' });
+        return;
+    }
+
     try {
         const shapes = await prisma.shape.findMany({
             where: {
                 roomId: roomId
             },
             orderBy: {
-                id: "desc"
+                createdAt: "asc" // Changed from "id: desc" to get shapes in chronological order
             },
             take: 1000
         })
 
-        res.status(201).json({shapes})
+        res.status(200).json({ shapes })
     } catch (error) {
         logger.error('Failed to fetch shapes', error, { roomId });
-        res.status(500).json({message: "Could not fetch shapes"})
+        res.status(500).json({ message: "Could not fetch shapes" })
     }
 }
 
 export const getRoomId = async (req: Request, res: Response) => {
-    const {slug} = req.params;
+    const { slug } = req.params;
+    
+    if (!slug || slug.trim().length === 0) {
+        res.status(400).json({ message: "Invalid slug" });
+        return;
+    }
     
     try {
         const room = await prisma.room.findUnique({
@@ -142,13 +165,13 @@ export const getRoomId = async (req: Request, res: Response) => {
         })
 
         if (!room) {
-            res.status(404).json({message: "Room not found"});
+            res.status(404).json({ message: "Room not found" });
             return;
         }
 
-        res.status(200).json({roomId: room.id});
+        res.status(200).json({ roomId: room.id });
     } catch (error) {
         logger.error('Failed to fetch room', error, { slug });
-        res.status(500).json({message: "Could not fetch room"})
+        res.status(500).json({ message: "Could not fetch room" })
     }
 }

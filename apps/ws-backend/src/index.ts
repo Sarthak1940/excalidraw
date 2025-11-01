@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { WebSocketServer, WebSocket } from "ws";
 import jwt, { JwtPayload } from "jsonwebtoken";
 import { JWT_SECRET, logger } from "@repo/backend-common/config";
@@ -9,9 +10,19 @@ interface ChatProps {
     userId: number
 } 
 
-const wss = new WebSocketServer({ port: 8080 });
+const WS_PORT = Number(process.env.WS_PORT) || 8080;
+const MAX_CONNECTIONS = 10000;
+const MESSAGE_SIZE_LIMIT = 100000; // 100KB per message
+
+const wss = new WebSocketServer({ 
+    port: WS_PORT,
+    maxPayload: MESSAGE_SIZE_LIMIT,
+});
 
 const userMap = new Map<number, ChatProps[]>(); // roomId and its members
+const connectionCount = new Map<number, number>(); // userId -> connection count
+
+logger.info(`WebSocket server starting on port ${WS_PORT}`);
 
 function checkUser(token: string): number | null {
     
@@ -78,8 +89,16 @@ wss.on("connection", (ws, req) => {
     const url = req.url;
 
     if (!url) {
+        ws.close(1008, 'Missing URL');
         return;
     };
+
+    // Check total connections
+    if (wss.clients.size > MAX_CONNECTIONS) {
+        logger.warn('Max connections reached', { count: wss.clients.size });
+        ws.close(1008, 'Server at capacity');
+        return;
+    }
 
     const queryParams = new URLSearchParams(url.split("?")[1]);
     const token = queryParams.get("token");
@@ -87,16 +106,77 @@ wss.on("connection", (ws, req) => {
     const userId = checkUser(token as string);
     
     if (!userId) {
-        ws.close();
+        ws.close(1008, 'Invalid token');
         return;
-    } 
+    }
+
+    // Track user connections
+    const userConnections = connectionCount.get(userId) || 0;
+    connectionCount.set(userId, userConnections + 1);
+
+    logger.info('WebSocket connection established', { userId, totalConnections: wss.clients.size });
+
+    // Set up heartbeat
+    let isAlive = true;
+    ws.on('pong', () => { isAlive = true; });
+
+    const heartbeatInterval = setInterval(() => {
+        if (!isAlive) {
+            logger.warn('WebSocket connection stale, terminating', { userId });
+            ws.terminate();
+            return;
+        }
+        isAlive = false;
+        ws.ping();
+    }, 30000); // 30 seconds
+
+    // Cleanup function
+    const cleanup = () => {
+        clearInterval(heartbeatInterval);
+        
+        // Remove from all rooms
+        for (const [roomId, members] of userMap.entries()) {
+            const index = members.findIndex(m => m.socket === ws);
+            if (index !== -1) {
+                members.splice(index, 1);
+                logger.info('User removed from room', { userId, roomId });
+            }
+            // Clean up empty rooms
+            if (members.length === 0) {
+                userMap.delete(roomId);
+            }
+        }
+        
+        // Decrement connection count
+        const count = connectionCount.get(userId) || 1;
+        if (count <= 1) {
+            connectionCount.delete(userId);
+        } else {
+            connectionCount.set(userId, count - 1);
+        }
+        
+        logger.info('WebSocket connection closed', { userId, totalConnections: wss.clients.size });
+    };
+
+    ws.on("close", cleanup);
+    ws.on("error", (error) => {
+        logger.error('WebSocket error', error, { userId });
+        cleanup();
+    });
 
     ws.on("message", async (message) => {
+        // Check message size
+        if (message.toString().length > MESSAGE_SIZE_LIMIT) {
+            logger.warn('Message too large', { userId, size: message.toString().length });
+            ws.send(JSON.stringify({ type: 'error', message: 'Message too large' }));
+            return;
+        }
+
         let parsedMessage;
         try {
             parsedMessage = JSON.parse(message as unknown as string);
         } catch (error) {
-            logger.error('Failed to parse WebSocket message', error);
+            logger.error('Failed to parse WebSocket message', { error, userId });
             ws.send(JSON.stringify({ type: 'error', message: 'Invalid message format' }));
             return;
         }
@@ -104,7 +184,10 @@ wss.on("connection", (ws, req) => {
         // Validate message schema
         const validationResult = wsMessageSchema.safeParse(parsedMessage);
         if (!validationResult.success) {
-            logger.warn('Invalid WebSocket message schema', { error: validationResult.error, message: parsedMessage });
+            logger.warn('Invalid WebSocket message schema', { 
+                error: validationResult.error.errors, 
+                userId 
+            });
             ws.send(JSON.stringify({ type: 'error', message: 'Invalid message schema' }));
             return;
         }
@@ -236,5 +319,5 @@ wss.on("connection", (ws, req) => {
                 }));
             })
         }
-    })
-})
+    });
+});

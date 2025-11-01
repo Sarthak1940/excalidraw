@@ -55,8 +55,10 @@ class DrawingState {
   }
 }
 
-export let existingShapesLength = 0;
+// Store existing shapes length in the state instead of global variable
+let existingShapesLength = 0;
 
+export { existingShapesLength };
 
 export const initDraw = ({
   canvas,
@@ -80,6 +82,7 @@ export const initDraw = ({
       data = JSON.parse(e.data);
     } catch (error) {
       console.error("Failed to parse socket message:", error);
+      // Consider showing user feedback here
       return;
     }
 
@@ -139,6 +142,9 @@ export const initDraw = ({
   getExistingShapes(roomId, shapesRef).then(() => {
     existingShapesLength = shapesRef.current.length;
     clearCanvas(shapesRef.current, ctx, canvas, state);
+  }).catch((error) => {
+    console.error("Failed to load existing shapes:", error);
+    // Consider showing user feedback here
   });
 
   clearCanvas(shapesRef.current, ctx, canvas, state);
@@ -385,13 +391,20 @@ async function getExistingShapes(
 ) {
   try {
     const response = await axios.get(
-      `${BACKEND_URL}/api/v1/user/get-existing-shapes/${roomId}`
+      `${BACKEND_URL}/api/v1/user/get-existing-shapes/${roomId}`,
+      { timeout: 10000 } // 10 second timeout
     );
     const shapes = response.data.shapes;
-    shapesRef.current = shapes;
+    if (Array.isArray(shapes)) {
+      shapesRef.current = shapes;
+    } else {
+      console.error("Invalid shapes data received");
+      shapesRef.current = [];
+    }
   } catch (error) {
     console.error("Failed to fetch existing shapes:", error);
     shapesRef.current = [];
+    throw error; // Re-throw to be caught by caller
   }
 }
 
