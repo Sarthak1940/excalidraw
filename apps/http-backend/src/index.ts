@@ -8,7 +8,7 @@ import { logger } from "@repo/backend-common/config";
 const app = express();
 
 const PORT = process.env.PORT || 5050;
-const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:3000";
+const FRONTEND_URL = process.env.FRONTEND_URL;
 
 // Body parser with size limit
 app.use(express.json({ limit: '10mb' }));
@@ -16,7 +16,7 @@ app.use(express.json({ limit: '10mb' }));
 // CORS configuration
 app.use(cors({
     credentials: true,
-    origin: FRONTEND_URL.split(','), // Support multiple origins
+    origin: FRONTEND_URL, // Support multiple origins
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization']
 }));
