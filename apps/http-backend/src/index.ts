@@ -31,20 +31,6 @@ app.get('/health', (req, res) => {
 // Routes
 app.use("/api/v1/user", userRoutes);
 
-// 404 handler
-app.use((req, res) => {
-    res.status(404).json({ message: 'Route not found' });
-});
-
-// Global error handler
-app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
-    logger.error('Unhandled error', err);
-    res.status(err.status || 500).json({ 
-        message: process.env.NODE_ENV === 'production' 
-            ? 'Internal server error' 
-            : err.message 
-    });
-});
 
 // Start server
 app.listen(PORT, () => {

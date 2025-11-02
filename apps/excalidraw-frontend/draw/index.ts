@@ -20,7 +20,7 @@ import { Point, SocketMessage } from "./types";
 
 type InitDrawParams = {
   canvas: HTMLCanvasElement;
-  roomId: string;
+  roomId: number;
   socket: WebSocket;
   ctx: CanvasRenderingContext2D;
   selectedShapeType: string;
@@ -386,7 +386,7 @@ export const initDraw = ({
  * Fetches existing shapes for a room from the backend
  */
 async function getExistingShapes(
-  roomId: string,
+  roomId: number,
   shapesRef: React.MutableRefObject<Shape[]>
 ) {
   try {

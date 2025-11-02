@@ -7,7 +7,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@repo/
 import { Shape } from "@/types";
 
 export default function Canvas({roomId, socket}: {
-    roomId: string,
+    roomId: number,
     socket: WebSocket
 }) {
     const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -40,11 +40,15 @@ export default function Canvas({roomId, socket}: {
 
         // Keyboard handler
         const handleKeyDown = (e: KeyboardEvent) => {
-            if (e.ctrlKey && e.key === "z") {
+            // Use metaKey (Cmd) on Mac, ctrlKey on Windows/Linux
+            const modifier = e.metaKey || e.ctrlKey;
+            
+            if (modifier && e.key === "z" && !e.shiftKey) {
                 e.preventDefault();
+                console.log("undo")
                 undo();
             }
-            if (e.ctrlKey && e.key === "y") {
+            if ((modifier && e.shiftKey && e.key === "z") || (e.ctrlKey && e.key === "y")) {
                 e.preventDefault();
                 redo();
             }

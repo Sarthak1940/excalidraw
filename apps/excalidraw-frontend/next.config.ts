@@ -1,7 +1,19 @@
 import type { NextConfig } from "next";
+import path from "path";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  transpilePackages: ["@repo/ui"],
+  webpack: (config) => {
+    // Handle path aliases from the ui package
+    config.resolve.alias = {
+      ...config.resolve.alias,
+      '@/lib': path.resolve(__dirname, '../../packages/ui/src/lib'),
+      '@/components': path.resolve(__dirname, '../../packages/ui/src/components'),
+      '@/hooks': path.resolve(__dirname, '../../packages/ui/src/hooks'),
+      '@/styles': path.resolve(__dirname, '../../packages/ui/src/styles'),
+    };
+    return config;
+  },
 };
 
 export default nextConfig;

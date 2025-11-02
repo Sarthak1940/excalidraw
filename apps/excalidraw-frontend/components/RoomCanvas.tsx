@@ -3,7 +3,7 @@ import { useSocket } from "@/hooks/useSocket";
 import { useEffect } from "react";
 import Canvas from "./Canvas";
 
-export default function RoomCanvas({roomId}: {roomId: string}) {
+export default function RoomCanvas({roomId}: {roomId: number}) {
     const {socket, loading} = useSocket();
 
     useEffect(() => {

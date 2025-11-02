@@ -47,7 +47,9 @@ export const signupHandler = async (req: Request, res: Response): Promise<void> 
             }
         })
 
-        res.status(201).json({ user });
+        const token = jwt.sign({ id: user.id }, JWT_SECRET as string, { expiresIn: '90d' });
+
+        res.status(200).cookie("token", token, options).json({ user: user, token });
     } catch (error) {
         logger.error('Signup failed', error);
         res.status(500).json({ message: 'Internal server error' });
@@ -173,5 +175,22 @@ export const getRoomId = async (req: Request, res: Response) => {
     } catch (error) {
         logger.error('Failed to fetch room', error, { slug });
         res.status(500).json({ message: "Could not fetch room" })
+    }
+}
+
+export const getAllRoomsForUser = async (req: Request, res: Response) => {
+    const userId = req.userId as number;
+
+    try {
+        const rooms = await prisma.room.findMany({
+            where: {
+                adminId: userId
+            }
+        })
+
+        res.status(200).json({ rooms });
+    } catch (error) {
+        logger.error('Failed to fetch rooms', error, { userId });
+        res.status(500).json({ message: "Could not fetch rooms" })
     }
 }

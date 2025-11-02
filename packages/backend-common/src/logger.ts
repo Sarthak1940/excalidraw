@@ -27,7 +27,7 @@ const logger = winston.createLogger({
     timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
     logFormat
   ),
-  defaultMeta: { service: 'excalidraw-backend' },
+  defaultMeta: { service: 'drawspace-backend' },
   transports: [
     // Write all logs to console
     new winston.transports.Console({
