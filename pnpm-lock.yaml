@@ -196,7 +196,6 @@ importers:
       '@repo/typescript-config':
         specifier: workspace:*
         version: link:../typescript-config
-    devDependencies:
       prisma:
         specifier: ^6.5.0
         version: 6.5.0(typescript@5.8.2)
