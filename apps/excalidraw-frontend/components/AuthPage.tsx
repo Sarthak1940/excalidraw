@@ -10,6 +10,7 @@ import { Label } from "@repo/ui/label"
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@repo/ui/card"
 import axios from "axios"
 import { BACKEND_URL } from "@/app/config"
+import { toast } from "sonner"
 
 export default function AuthPage({isSignIn}: {isSignIn: boolean}) {
   const [isLoading, setIsLoading] = React.useState(false)
@@ -23,6 +24,8 @@ export default function AuthPage({isSignIn}: {isSignIn: boolean}) {
     event.preventDefault()
     setIsLoading(true)
 
+    const loadingToast = toast.loading(isSignIn ? "Signing in..." : "Creating account...")
+
     try {
       const response = await axios.post(`${BACKEND_URL}/api/v1/user/${isSignIn ? "login" : "signup"}`, {
         email,
@@ -31,14 +34,19 @@ export default function AuthPage({isSignIn}: {isSignIn: boolean}) {
       }, {withCredentials: true});
 
       if (response.status === 200) {
-        router.push("/dashboard");
+        toast.success(isSignIn ? "Welcome back!" : "Account created successfully!", {
+          id: loadingToast,
+        });
         localStorage.setItem("userId", response.data.user.id);
+        router.push("/dashboard");
       }
 
       setIsLoading(false);
     } catch(error: any) {
       console.error('Authentication failed:', error?.response?.data?.message || error.message);
-      alert(error?.response?.data?.message || 'Authentication failed. Please try again.');
+      toast.error(error?.response?.data?.message || 'Authentication failed. Please try again.', {
+        id: loadingToast,
+      });
       setIsLoading(false);
     }
     

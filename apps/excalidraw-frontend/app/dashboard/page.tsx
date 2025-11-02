@@ -11,7 +11,7 @@ import * as DialogPrimitive from "@radix-ui/react-dialog"
 import { Label } from "@repo/ui/label"
 import axios from "axios"
 import { BACKEND_URL } from "../config"
-import { set } from "lodash"
+import { toast } from "sonner"
 
 interface Room {
   id: number;
@@ -23,16 +23,20 @@ interface Room {
 export default function Dashboard() {
   const router = useRouter()
   const [rooms, setRooms] = React.useState<Room[]>([])
+  const [isLoadingRooms, setIsLoadingRooms] = React.useState(true)
   
   const [isCreateDialogOpen, setIsCreateDialogOpen] = React.useState(false)
   const [isJoinDialogOpen, setIsJoinDialogOpen] = React.useState(false)
   const [newRoomName, setNewRoomName] = React.useState("")
   const [joinRoomId, setJoinRoomId] = React.useState("")
   const [searchQuery, setSearchQuery] = React.useState("")
+  const [isCreating, setIsCreating] = React.useState(false)
+  const [isJoining, setIsJoining] = React.useState(false)
 
   React.useEffect(() => {
     const fetchRooms = async () => {
         try {
+            setIsLoadingRooms(true)
             const response = await axios.get(`${BACKEND_URL}/api/v1/user/get-all-rooms`, {
                 withCredentials: true
             })
@@ -40,6 +44,9 @@ export default function Dashboard() {
             setRooms(response.data.rooms)
         } catch (error) {
             console.error("Error fetching rooms:", error)
+            toast.error("Failed to load rooms")
+        } finally {
+            setIsLoadingRooms(false)
         }
     }
 
@@ -47,54 +54,66 @@ export default function Dashboard() {
   }, [])
 
   const handleCreateRoom = async () => {
-    if (!newRoomName.trim()) return
+    if (!newRoomName.trim()) {
+        toast.error("Please enter a room name")
+        return
+    }
     
-    const createRoom = async (slug: string) => {
-        try {
-            const response = await axios.post(`${BACKEND_URL}/api/v1/user/room`, { slug }, { withCredentials: true })
-            return response.data.id
-        } catch (error) {
-            console.error("Error creating room:", error)
-        }
-    }
-
-    const roomId = await createRoom(newRoomName)
-    if (roomId) {
+    setIsCreating(true)
+    const loadingToast = toast.loading("Creating room...")
+    
+    try {
+        const response = await axios.post(`${BACKEND_URL}/api/v1/user/room`, 
+            { slug: newRoomName }, 
+            { withCredentials: true }
+        )
+        const roomId = response.data.id
+        
+        toast.success("Room created!", { id: loadingToast })
+        setNewRoomName("")
+        setIsCreateDialogOpen(false)
         router.push(`/canvas/${roomId}`)
+    } catch (error: any) {
+        console.error("Error creating room:", error)
+        toast.error(error?.response?.data?.message || "Failed to create room", { id: loadingToast })
+        setIsCreating(false)
     }
-
-    setNewRoomName("")
-    setIsCreateDialogOpen(false)
   }
 
   const handleJoinRoom = async () => {
-    if (!joinRoomId.trim()) return
-
-    const getRoomId = async (slug: string) => {
-        try {
-            const response = await axios.get(`${BACKEND_URL}/api/v1/user/get-roomId/${slug}`, { withCredentials: true })
-            return response.data.roomId
-        } catch (error) {
-            console.error("Error joining room:", error)
-        }
+    if (!joinRoomId.trim()) {
+        toast.error("Please enter a room name")
+        return
     }
 
-    const roomId = await getRoomId(joinRoomId)
+    setIsJoining(true)
+    const loadingToast = toast.loading("Joining room...")
 
-    if (roomId) {
+    try {
+        const response = await axios.get(`${BACKEND_URL}/api/v1/user/get-roomId/${joinRoomId}`, 
+            { withCredentials: true }
+        )
+        const roomId = response.data.roomId
+        
+        toast.success("Joined room!", { id: loadingToast })
+        setJoinRoomId("")
+        setIsJoinDialogOpen(false)
         router.push(`/canvas/${roomId}`)
+    } catch (error: any) {
+        console.error("Error joining room:", error)
+        toast.error(error?.response?.data?.message || "Room not found", { id: loadingToast })
+        setIsJoining(false)
     }
-
-    setJoinRoomId("")
-    setIsJoinDialogOpen(false)
   }
 
   const handleCopyRoomId = (roomId: string) => {
     navigator.clipboard.writeText(roomId)
+    toast.success("Room name copied to clipboard!")
   }
 
   const handleLogout = () => {
     localStorage.removeItem("userId")
+    toast.success("Logged out successfully")
     router.push("/")
   }
 
@@ -137,14 +156,16 @@ export default function Dashboard() {
                 variant="outline"
                 onClick={() => setIsCreateDialogOpen(false)}
                 className="border-slate-300 text-slate-700"
+                disabled={isCreating}
               >
                 Cancel
               </Button>
               <Button
                 onClick={handleCreateRoom}
                 className="bg-blue-600 text-white hover:bg-blue-700"
+                disabled={isCreating}
               >
-                Create Room
+                {isCreating ? "Creating..." : "Create Room"}
               </Button>
             </div>
             <DialogPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-white transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-slate-950 focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-slate-100 data-[state=open]:text-slate-500">
@@ -188,14 +209,16 @@ export default function Dashboard() {
                 variant="outline"
                 onClick={() => setIsJoinDialogOpen(false)}
                 className="border-slate-300 text-slate-700"
+                disabled={isJoining}
               >
                 Cancel
               </Button>
               <Button
                 onClick={handleJoinRoom}
                 className="bg-blue-600 text-white hover:bg-blue-700"
+                disabled={isJoining}
               >
-                Join Room
+                {isJoining ? "Joining..." : "Join Room"}
               </Button>
             </div>
             <DialogPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-white transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-slate-950 focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-slate-100 data-[state=open]:text-slate-500">
@@ -275,10 +298,24 @@ export default function Dashboard() {
           {/* Rooms Grid */}
           <div>
             <h2 className="text-2xl font-semibold text-slate-900 mb-6">
-              Your Rooms ({filteredRooms.length})
+              Your Rooms ({isLoadingRooms ? "..." : filteredRooms.length})
             </h2>
             
-            {filteredRooms.length === 0 ? (
+            {isLoadingRooms ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {[1, 2, 3].map((i) => (
+                  <Card key={i} className="border-slate-200 bg-white">
+                    <CardHeader className="pb-4 pt-6 px-6">
+                      <div className="h-6 bg-slate-200 rounded animate-pulse mb-2"></div>
+                      <div className="h-4 bg-slate-100 rounded animate-pulse w-2/3"></div>
+                    </CardHeader>
+                    <CardContent className="px-6 pb-6">
+                      <div className="h-10 bg-slate-200 rounded animate-pulse"></div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : filteredRooms.length === 0 ? (
               <Card className="border-slate-200 bg-white shadow-sm">
                 <CardContent className="flex flex-col items-center justify-center py-16">
                   <Pencil className="h-16 w-16 text-slate-300 mb-4" />

@@ -40,7 +40,7 @@ export interface Point {
  * Socket message types
  */
 export interface SocketMessage {
-  type: "shape" | "undo" | "redo" | "update";
+  type: "shape" | "undo" | "redo" | "update" | "shape_id_update" | "shape_save_failed";
   payload: any;
 }
 

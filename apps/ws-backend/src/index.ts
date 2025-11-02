@@ -223,8 +223,8 @@ wss.on("connection", (ws, req) => {
             const tempId = validMessage.payload.tempId;
             const members = userMap.get(roomId);
             
-            const shapeId = await createShape(data, type, strokeWidth, strokeColor, backgroundColor, userId, roomId);
-
+            // OPTIMIZATION: Broadcast immediately to all users with tempId
+            // Don't wait for database write to complete
             members?.forEach((member) => {
                 member.socket.send(JSON.stringify({
                     type: "shape",
@@ -236,11 +236,43 @@ wss.on("connection", (ws, req) => {
                         backgroundColor,
                         userId,
                         roomId,
-                        shapeId,
+                        shapeId: null, // Will be updated once DB write completes
                         tempId
                     }
                 }));
-            })
+            });
+
+            // Save to database asynchronously (don't await)
+            // This doesn't block the WebSocket message handler
+            createShape(data, type, strokeWidth, strokeColor, backgroundColor, userId, roomId)
+                .then((shapeId) => {
+                    // Broadcast the real database ID once saved
+                    members?.forEach((member) => {
+                        member.socket.send(JSON.stringify({
+                            type: "shape_id_update",
+                            payload: {
+                                tempId,
+                                shapeId,
+                                roomId
+                            }
+                        }));
+                    });
+                    logger.info('Shape saved to database', { shapeId, tempId, roomId, userId });
+                })
+                .catch((error) => {
+                    logger.error('Failed to save shape to database', error, { tempId, roomId, userId });
+                    // Optionally notify clients about the failure
+                    members?.forEach((member) => {
+                        member.socket.send(JSON.stringify({
+                            type: "shape_save_failed",
+                            payload: {
+                                tempId,
+                                roomId,
+                                message: "Failed to save shape"
+                            }
+                        }));
+                    });
+                });
         }
 
         if (validMessage.type === "undo") {
@@ -274,8 +306,7 @@ wss.on("connection", (ws, req) => {
             const tempId = shape.tempId;
             const members = userMap.get(roomId);
 
-            const shapeId = await createShape(data, type, strokeWidth, strokeColor, backgroundColor, userId, roomId);
-
+            // OPTIMIZATION: Broadcast immediately, save to DB asynchronously
             members?.forEach((member) => {
                 member.socket.send(JSON.stringify({
                     type: "shape",
@@ -287,11 +318,30 @@ wss.on("connection", (ws, req) => {
                         backgroundColor,
                         userId,
                         roomId,
-                        shapeId,
+                        shapeId: null,
                         tempId
                     }
                 }));
-            })
+            });
+
+            // Save asynchronously
+            createShape(data, type, strokeWidth, strokeColor, backgroundColor, userId, roomId)
+                .then((shapeId) => {
+                    members?.forEach((member) => {
+                        member.socket.send(JSON.stringify({
+                            type: "shape_id_update",
+                            payload: {
+                                tempId,
+                                shapeId,
+                                roomId
+                            }
+                        }));
+                    });
+                    logger.info('Redo shape saved to database', { shapeId, tempId, roomId, userId });
+                })
+                .catch((error) => {
+                    logger.error('Failed to save redo shape', error, { tempId, roomId, userId });
+                });
         }
 
         if (validMessage.type === "update") {

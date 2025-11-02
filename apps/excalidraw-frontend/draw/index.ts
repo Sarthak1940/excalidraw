@@ -92,13 +92,15 @@ export const initDraw = ({
       );
 
       if (shapeIndex !== -1) {
+        // Update existing shape with DB ID (when it arrives)
         shapesRef.current[shapeIndex] = {
           ...shapesRef.current[shapeIndex],
           id: data.payload.shapeId,
         };
       } else {
+        // Add new shape from other users
         shapesRef.current.push({
-          id: data.payload.id,
+          id: data.payload.shapeId,
           type: data.payload.type,
           data: data.payload.data,
           strokeColor: data.payload.strokeColor,
@@ -109,6 +111,31 @@ export const initDraw = ({
       }
 
       clearCanvas(shapesRef.current, ctx, canvas, state);
+    }
+
+    // NEW: Handle shape_id_update - updates tempId with real DB ID
+    if (data.type === "shape_id_update" && data.payload.roomId === roomId) {
+      const shapeIndex = shapesRef.current.findIndex(
+        (s) => s.tempId === data.payload.tempId
+      );
+      
+      if (shapeIndex !== -1) {
+        shapesRef.current[shapeIndex] = {
+          ...shapesRef.current[shapeIndex],
+          id: data.payload.shapeId,
+        };
+        console.log(`Shape ${data.payload.tempId} persisted with ID ${data.payload.shapeId}`);
+      }
+      // No need to redraw - the shape is already visible
+    }
+
+    // NEW: Handle shape save failures
+    if (data.type === "shape_save_failed" && data.payload.roomId === roomId) {
+      console.error(`Failed to save shape ${data.payload.tempId}: ${data.payload.message}`);
+      // Show toast notification (you can import toast from sonner in the Canvas component)
+      if (typeof window !== 'undefined' && (window as any).showShapeSaveError) {
+        (window as any).showShapeSaveError(data.payload.tempId);
+      }
     }
 
     if (data.type === "undo" && data.payload.roomId === roomId) {

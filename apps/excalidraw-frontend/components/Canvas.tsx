@@ -5,6 +5,8 @@ import { Button } from "@repo/ui/button"
 import { Square, Minus, Circle, MousePointer2, Pencil } from "lucide-react"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@repo/ui/tooltip"
 import { Shape } from "@/types";
+import { KeyboardShortcuts } from "./KeyboardShortcuts";
+import { toast } from "sonner";
 
 export default function Canvas({roomId, socket}: {
     roomId: number,
@@ -21,6 +23,13 @@ export default function Canvas({roomId, socket}: {
     const [strokeWidth, setStrokeWidth] = useState(2);
 
     useEffect(() => {
+        // Setup global handler for shape save errors
+        (window as any).showShapeSaveError = (tempId: string) => {
+            toast.error("Failed to save shape", {
+                description: "Your drawing is visible but may not be saved permanently"
+            });
+        };
+
         if (!canvasRef || !canvasRef.current) return;
         const canvas = canvasRef.current;
 
@@ -43,14 +52,45 @@ export default function Canvas({roomId, socket}: {
             // Use metaKey (Cmd) on Mac, ctrlKey on Windows/Linux
             const modifier = e.metaKey || e.ctrlKey;
             
+            // Undo
             if (modifier && e.key === "z" && !e.shiftKey) {
                 e.preventDefault();
-                console.log("undo")
                 undo();
             }
+            // Redo
             if ((modifier && e.shiftKey && e.key === "z") || (e.ctrlKey && e.key === "y")) {
                 e.preventDefault();
                 redo();
+            }
+            
+            // Tool shortcuts (only if no modifier key)
+            if (!modifier && !e.shiftKey && !e.altKey) {
+                switch (e.key.toLowerCase()) {
+                    case "r":
+                        e.preventDefault();
+                        setSelectedShape("rect");
+                        break;
+                    case "c":
+                        e.preventDefault();
+                        setSelectedShape("circle");
+                        break;
+                    case "l":
+                        e.preventDefault();
+                        setSelectedShape("line");
+                        break;
+                    case "p":
+                        e.preventDefault();
+                        setSelectedShape("pencil");
+                        break;
+                    case "v":
+                        e.preventDefault();
+                        setSelectedShape("select");
+                        break;
+                    case "escape":
+                        e.preventDefault();
+                        setSelectedShape("select");
+                        break;
+                }
             }
         };
 
@@ -111,6 +151,9 @@ export default function Canvas({roomId, socket}: {
 
     return (
     <div className="flex h-screen">
+    {/* Keyboard Shortcuts */}
+    <KeyboardShortcuts />
+    
     {/* Drawing Sidebar */}
     
         <div className="w-64 bg-[#1e1e1e] absolute z-10 left-0 top-12 border-r border-[#3a3a3a] p-4 flex flex-col gap-6 overflow-y-auto">
