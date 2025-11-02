@@ -3,7 +3,7 @@ services:
     name: drawspace-http-backend
     runtime: node
     plan: free
-    node: 20
+    env: node
     buildCommand: NODE_ENV=development pnpm install && pnpm --filter=@repo/db generate && pnpm --filter=@repo/common build && pnpm --filter=@repo/db build && pnpm --filter=@repo/backend-common build && pnpm --filter=http-backend build
     startCommand: cd apps/http-backend && node dist/index.js
     envVars:
@@ -22,7 +22,7 @@ services:
     name: drawspace-ws-backend
     runtime: node
     plan: free
-    node: 20
+    env: node
     buildCommand: NODE_ENV=development pnpm install && pnpm --filter=@repo/db generate && pnpm --filter=@repo/common build && pnpm --filter=@repo/db build && pnpm --filter=@repo/backend-common build && pnpm --filter=ws-backend build
     startCommand: cd apps/ws-backend && node dist/index.js
     envVars:
