@@ -1,0 +1,34 @@
+services:
+  - type: web
+    name: drawspace-http-backend
+    runtime: node
+    plan: free
+    rootDir: apps/http-backend
+    buildCommand: pnpm install && pnpm build
+    startCommand: pnpm start
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: NODE_ENV
+        value: production
+
+  - type: web
+    name: drawspace-ws-backend
+    runtime: node
+    plan: free
+    rootDir: apps/ws-backend
+    buildCommand: pnpm install
+    startCommand: pnpm start
+    envVars:
+      - key: WS_PORT
+        value: 8080
+      - key: DATABASE_URL
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      - key: NODE_ENV
+        value: production
+      - key: LOG_LEVEL
+        value: info
