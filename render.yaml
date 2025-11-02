@@ -3,9 +3,8 @@ services:
     name: drawspace-http-backend
     runtime: node
     plan: free
-    rootDir: apps/http-backend
-    buildCommand: pnpm install && pnpm build
-    startCommand: pnpm start
+    buildCommand: pnpm install && pnpm --filter=http-backend build
+    startCommand: cd apps/http-backend && node dist/index.js
     envVars:
       - key: DATABASE_URL
         sync: false
@@ -18,9 +17,8 @@ services:
     name: drawspace-ws-backend
     runtime: node
     plan: free
-    rootDir: apps/ws-backend
-    buildCommand: pnpm install
-    startCommand: pnpm start
+    buildCommand: pnpm install && pnpm --filter=ws-backend build
+    startCommand: cd apps/ws-backend && node dist/index.js
     envVars:
       - key: WS_PORT
         value: 8080
