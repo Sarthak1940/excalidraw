@@ -12,6 +12,10 @@ services:
         sync: false
       - key: NODE_ENV
         value: production
+      - key: LOG_LEVEL
+        value: info
+      - key: FRONTEND_URL
+        sync: false
 
   - type: web
     name: drawspace-ws-backend
