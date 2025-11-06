@@ -15,11 +15,13 @@ export function useSocket() {
     }, []);
 
     useEffect(() => {
-        if (!token) {
-            setLoading(false);
-            setError('No authentication token found');
-            return;
-        }
+        setTimeout(() => {
+            if (!token) {
+                setLoading(false);
+                setError('No authentication token found');
+                return;
+            }
+        }, 2000);
 
         let ws: WebSocket;
         let reconnectTimeout: NodeJS.Timeout;
