@@ -6,22 +6,28 @@ export function useSocket() {
     const [socket, setSocket] = useState<WebSocket | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [token, setToken] = useState<string | null>(null);
+    const [tokenChecked, setTokenChecked] = useState(false);
 
     // Get token from sessionStorage on mount (for WebSocket only)
     useEffect(() => {
         if (typeof window !== 'undefined') {
-            setToken(sessionStorage.getItem('ws_token'));
+            const storedToken = sessionStorage.getItem('ws_token');
+            setToken(storedToken);
+            setTokenChecked(true);
         }
     }, []);
 
     useEffect(() => {
-        setTimeout(() => {
-            if (!token) {
-                setLoading(false);
-                setError('No authentication token found');
-                return;
-            }
-        }, 2000);
+        // Wait until we've checked for the token
+        if (!tokenChecked) {
+            return;
+        }
+
+        if (!token) {
+            setLoading(false);
+            setError('No authentication token found');
+            return;
+        }
 
         let ws: WebSocket;
         let reconnectTimeout: NodeJS.Timeout;
@@ -73,7 +79,7 @@ export function useSocket() {
                 ws.close(1000, 'Component unmounting');
             }
         };
-    }, [token]); // Token will now update after localStorage is read
+    }, [token, tokenChecked]); // Wait for token check before connecting
 
     return { loading, socket, error }; 
 }
