@@ -1,12 +1,18 @@
 import { WEBSOCKET_URL } from "@/app/config";
 import { useEffect, useState } from "react";
-import Cookies from 'js-cookie';
 
 export function useSocket() {
     const [loading, setLoading] = useState(true);
     const [socket, setSocket] = useState<WebSocket | null>(null);
     const [error, setError] = useState<string | null>(null);
-    const token = Cookies.get('token');
+    const [token, setToken] = useState<string | null>(null);
+
+    // Get token from sessionStorage on mount (for WebSocket only)
+    useEffect(() => {
+        if (typeof window !== 'undefined') {
+            setToken(sessionStorage.getItem('ws_token'));
+        }
+    }, []);
 
     useEffect(() => {
         if (!token) {
@@ -65,7 +71,7 @@ export function useSocket() {
                 ws.close(1000, 'Component unmounting');
             }
         };
-    }, [token]);
+    }, [token]); // Token will now update after localStorage is read
 
     return { loading, socket, error }; 
 }

@@ -38,20 +38,25 @@ export default function Dashboard() {
         try {
             setIsLoadingRooms(true)
             const response = await axios.get(`${BACKEND_URL}/api/v1/user/get-all-rooms`, {
-                withCredentials: true
+                withCredentials: true // Uses HTTP-only cookie
             })
 
             setRooms(response.data.rooms)
-        } catch (error) {
+        } catch (error: any) {
             console.error("Error fetching rooms:", error)
-            toast.error("Failed to load rooms")
+            if (error?.response?.status === 401) {
+                toast.error("Please sign in to continue")
+                router.push('/signin')
+            } else {
+                toast.error("Failed to load rooms")
+            }
         } finally {
             setIsLoadingRooms(false)
         }
     }
 
     fetchRooms()
-  }, [])
+  }, [router])
 
   const handleCreateRoom = async () => {
     if (!newRoomName.trim()) {
@@ -65,7 +70,7 @@ export default function Dashboard() {
     try {
         const response = await axios.post(`${BACKEND_URL}/api/v1/user/room`, 
             { slug: newRoomName }, 
-            { withCredentials: true }
+            { withCredentials: true } // Uses HTTP-only cookie
         )
         const roomId = response.data.id
         
@@ -75,7 +80,12 @@ export default function Dashboard() {
         router.push(`/canvas/${roomId}`)
     } catch (error: any) {
         console.error("Error creating room:", error)
-        toast.error(error?.response?.data?.message || "Failed to create room", { id: loadingToast })
+        if (error?.response?.status === 401) {
+            toast.error("Please sign in to continue", { id: loadingToast })
+            router.push('/signin')
+        } else {
+            toast.error(error?.response?.data?.message || "Failed to create room", { id: loadingToast })
+        }
         setIsCreating(false)
     }
   }
@@ -91,7 +101,7 @@ export default function Dashboard() {
 
     try {
         const response = await axios.get(`${BACKEND_URL}/api/v1/user/get-roomId/${joinRoomId}`, 
-            { withCredentials: true }
+            { withCredentials: true } // Uses HTTP-only cookie
         )
         const roomId = response.data.roomId
         
@@ -101,7 +111,12 @@ export default function Dashboard() {
         router.push(`/canvas/${roomId}`)
     } catch (error: any) {
         console.error("Error joining room:", error)
-        toast.error(error?.response?.data?.message || "Room not found", { id: loadingToast })
+        if (error?.response?.status === 401) {
+            toast.error("Please sign in to continue", { id: loadingToast })
+            router.push('/signin')
+        } else {
+            toast.error(error?.response?.data?.message || "Room not found", { id: loadingToast })
+        }
         setIsJoining(false)
     }
   }
@@ -113,6 +128,7 @@ export default function Dashboard() {
 
   const handleLogout = () => {
     localStorage.removeItem("userId")
+    sessionStorage.removeItem("ws_token")
     toast.success("Logged out successfully")
     router.push("/")
   }

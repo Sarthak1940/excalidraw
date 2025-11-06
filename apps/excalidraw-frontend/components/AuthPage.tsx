@@ -38,6 +38,9 @@ export default function AuthPage({isSignIn}: {isSignIn: boolean}) {
           id: loadingToast,
         });
         localStorage.setItem("userId", response.data.user.id);
+        // Store token in sessionStorage (cleared on tab close) for WebSocket connection
+        // HTTP-only cookie is still used for HTTP API requests
+        sessionStorage.setItem("ws_token", response.data.token);
         router.push("/dashboard");
       }
 
